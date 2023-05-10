@@ -1,0 +1,75 @@
+# IP parsing script. Intended input is .csv. Adjust column headers; A = 'Host' and B = 'IP'.
+----------------------------------------------------------------------------------------------------------------------------------------------
+#Prompt user to cancel or continue
+$continue = New-Object System.Management.Automation.Host.ChoiceDescription "&Continue","Description"
+
+$quit = New-Object System.Management.Automation.Host.ChoiceDescription "&Quit","Description"
+
+$options = [System.Management.Automation.Host.ChoiceDescription[]]($continue, $quit)
+
+$message = "Please adjust the headers in your CSV to be 'Host' & 'IP' for the script to function! Prepare to select file..."
+
+$result = $host.ui.PromptForChoice("Header adjustment required",$message, $options, 1)
+
+switch ($result) {
+ 0{
+   Write-Host "Continuing with the script"
+ }1{
+   Write-Host "Script cancelled by user"
+ }
+}
+
+#Prompt user for file to parse
+Add-Type -AssemblyName System.Windows.Forms
+
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = "Select a file"
+$dialog.Filter = "All Files (*.*)|*.*"
+
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  $selectedFile = $dialog.FileName
+  Write-Host "You selected file: $selectedFile"
+
+  # Import csv file
+  $csvFile = Import-Csv $selectedFile
+
+} else {
+  Write-Host "No file selected."
+}
+
+# Initialize an empty array to store the IP addresses
+$ipArray = @()
+
+#Loop through each row in the CSV file
+foreach ($IP in $csvFile) {
+    #Extract all IP addresses from the current column via regex
+    $v4Pattern = [regex]::Matches($IP."IP", "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
+
+    #Loop through each IP match and add it to the array
+    foreach ($match in $v4Pattern) {
+        $ipArray += $match.Value
+    }
+}
+
+# Group the IP addresses by first three octets/ vlans
+$ipGroups = $ipArray | Group-Object { $_.Split('.')[2] -join '.' }
+
+# Sort the groups by group number in descending order
+$sortedGroups = $ipGroups | Sort-Object { [int]$_.Name }
+
+# Output the sorted groups
+$output = ""
+foreach ($group in $sortedGroups) {
+    $output += "IP addresses in group $($group.Name):`r`n"
+
+    #Sort data sets in descending order
+    $sortedIPs = $group.Group | ForEach-Object { [IPAddress]$_ } | Sort-Object Address | ForEach-Object { $_.ToString() }
+
+    foreach ($ip in $sortedIPs) {
+        $output += "`t$ip`r`n"
+    }
+}
+
+$outputPath = "C:\Users\$env:USERNAME\Documents\IP_Parsing.txt"
+$output | Out-File -FilePath $outputPath
+Read-Host "Output has been saved to file: $outputPath"
