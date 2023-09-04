@@ -1,0 +1,8 @@
+#Install path has to be either 'C:\Users\$env:USERNAME\AppData\Local\PackageManagement\ProviderAssemblies' || 'C:\Program Files(x86)\PackageManagement\ProviderAssemblies'
+$installPath = "C:\Program Files (x86)\PackageManagement\ProviderAssemblies"
+
+#Modify env variable and append new directory path.
+$env:PSModulePath += ";$installPath\Modules"
+
+#Install NuGet
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
